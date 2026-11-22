@@ -1,0 +1,133 @@
+    """
+    Strong Rank Revealing QR with an error threshold tol
+        A[:, p] = Q * R = Q [R11, R12;
+                               0, R22]
+    where R11 and R12 satisfies that matrix (inv(R11) * R12) has entries
+    bounded by a pre-specified constant which should be not less than 1.
+    Input:
+        A, matrix,  target matrix that is approximated.
+        f, scalar,  constant that bound the entries of calculated (inv(R11) * R12)
+        tol, scalar, error threshold.
+
+    Output:
+        A[:, p] = [Q1, Q2] * [R11, R12;
+                               0, R22]
+               approx Q1 * [R11, R12];
+        Only truncated QR decomposition is returned as
+            Q = Q1,
+            R = [R11, R12];
+        where each column of R22 is less than tol.
+
+    Reference:
+        Gu, Ming, and Stanley C. Eisenstat. "Efficient algorithms for
+        computing a strong rank-revealing QR factorization." SIAM Journal
+        on Scientific Computing 17.4 (1996): 848-869.
+
+    Note:
+        Algorithm 5 in the above ref. is implemented.
+    """
+
+
+
+
+
+"""
+def householder_first_column(A):
+
+    # Ensure A is of type float
+    R = A.astype(float)
+
+    # Extract the first column (starting from the second row)
+    x = R[:, 0]
+
+    # Compute the norm of the first column
+    norm_x = np.linalg.norm(x)
+
+    # Compute the sign-adjusted reflection to ensure a positive diagonal element
+    sign = np.sign(x[0]) if x[0] != 0 else 1  # Avoid sign(0) == 0, use 1 in that case
+    v = x.copy()
+    v[0] += sign * norm_x
+
+    # Normalize the vector v
+    v = v / np.linalg.norm(v)
+
+    # Apply the Householder transformation
+    R -= 2 * np.outer(v, np.dot(v, R))
+
+    # Ensure the diagonal element is positive
+    if R[0, 0] < 0:
+        R *= -1
+
+    return R
+
+def householder_transform(A):
+
+    m, n = A.shape
+    print("householder m and n", m, n)
+    x = A[:m, 0].copy()  # First column
+    print("householder x", x.shape)
+    # Calculate the norm of the vector we want to transform
+    x_norm = np.linalg.norm(x)
+
+    # Create the standard basis vector e1
+    e1 = np.zeros_like(x)
+    e1[0] = x_norm
+
+    # Calculate the Householder vector v
+    v = x - e1
+    v_norm = np.linalg.norm(v)
+
+    if v_norm == 0:
+        # No transformation needed
+        return np.eye(m), A.copy()
+
+    # Normalize v
+    v = v / v_norm
+
+    # Compute Householder matrix H = I - 2vv^T
+    H = np.eye(m) - 2 * np.dot(v, v.T)
+    print("householder H", H.shape)
+    # Apply transformation to A
+    transformed_A = np.dot(H, A)
+    print("householder A", A.shape)
+
+    return transformed_A
+
+
+def householder_first_column(A):
+
+    # Ensure A is a 2D numpy array
+    A = np.array(A, dtype=float)
+    m, n = A.shape
+
+    # Extract the first column of A
+    x = A[:, 0].reshape(-1, 1)
+
+    # Compute the norm of x
+    norm_x = np.linalg.norm(x)
+
+    # Create the unit vector e1
+    e1 = np.zeros_like(x)
+    e1[0, 0] = 1
+
+    # Compute the Householder vector with positive diagonal constraint
+    v = x + np.sign(x[0, 0]) * norm_x * e1
+    v /= np.linalg.norm(v)
+
+    # Form the Householder matrix
+    H = np.eye(m) - 2 * np.outer(v, v)
+
+    # Apply the Householder transformation to A
+    A_transformed = H @ A
+
+    return A_transformed
+
+
+def householder_vectorized(a):
+
+    v = a / (a[0] + np.copysign(np.linalg.norm(a), a[0]))
+    v[0] = 1
+    tau = 2 / (v.T @ v)
+
+    return v, tau
+"""

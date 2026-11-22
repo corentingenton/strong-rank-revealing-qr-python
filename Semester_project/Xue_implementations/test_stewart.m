@@ -1,0 +1,153 @@
+%% generate a Stewart matrix
+clear
+clc
+rng(42);
+m = 1024;
+n = 100;
+U = orth(rand(m,n));
+V = orth(rand(n,n));
+t = 1:n/2;
+SM_1 =  0.8.^t;
+SM_2 = zeros(1,n/2);
+SIG = diag([SM_1 SM_2]);
+M = U*SIG*V + 0.1*SM_1(end)*rand(m,n);
+csvwrite('M_stewart.csv', M);
+k = 99;
+f = 1.5;
+tol = 1e-4;
+% do a SRHT sketching
+% sketch matrix: SRHT dxm
+d = 5*n;
+D = diag(randsrc(1,m));
+H = hadamard(m)/sqrt(m);
+sampled_rows = randsample(m,d,true)';
+HDM = H*D*M;
+M_sk = sqrt(m/d)*HDM(sampled_rows,:);
+csvwrite('M_sk_stewart.csv', M_sk);
+%%
+
+% RRQR on sketched matrix
+[Q_sk, R_sk, P, nb] = rrqr_k(M_sk,k,f);
+[Q,R] = qr(M*P);
+R11 = R(1:k,1:k);
+R12 = R(1:k,k+1:end);
+R22 = R(k+1:end,k+1:end);
+while (norm(R22)>tol)
+    k = k + 1;
+    [Q_sk, R_sk, P, nb] = rrqr_k(M_sk,k,f);
+    [Q,R] = qr(M*P);
+    R11 = R(1:k,1:k);
+    R12 = R(1:k,k+1:end);
+    R22 = R(k+1:end,k+1:end);
+    if k >= n-2
+        break
+    end
+end
+sig_R11 = svd(R11);
+sig_M = svd(M);
+ratio1 = sig_M(1:k)./sig_R11;
+
+R11_sk = R_sk(1:k,1:k);
+sig_R11_sk = svd(R11_sk);
+sig_M_sk = svd(M_sk);
+ratio2 = sig_M_sk(1:k)./sig_R11_sk;
+
+ratio3 = sig_M(1:k)./sig_R11_sk;
+
+% comparing with QRCP
+[Q_cp, R_cp, P_cp] = qr(M);
+R11_cp = R_cp(1:k,1:k);
+ratio_cp = sig_M(1:k)./svd(R11_cp);
+
+% comparing with rsvd
+[~,S,~] = rsvd(M,2*n);
+sig_M_rsvd = diag(S);
+nb_rsvd = min(k,length(sig_M_rsvd));
+ratio_rsvd = sig_M(1:nb_rsvd)./sig_M_rsvd(1:nb_rsvd);
+
+% comparing with singular values of (R11 R12)
+sig_L = svd([R(1:k,:)]);
+ratio_strong = sig_M(1:k)./sig_L(1:k);
+
+f_eps = f*sqrt((1+0.25)/(1-0.25));
+B = sqrt(1+f_eps^2*k*(n-k));
+% plot the svd of M and M_sk
+
+fig1 = figure(1);
+semilogy(1:n,sig_M,'-or','Markerindices',[1:fix(n/100):n])
+hold on
+semilogy(1:n,sig_M_sk,'-xb','Markerindices',[1:fix(n/100):n])
+hold on
+legend({'$\sigma(M)$','$\sigma(M^{sk})$'},'Interpreter','latex')
+xlabel('index i')
+ylabel('singular values')
+
+% plot the ratios between the leading singular values of M and R11
+fig2 = figure(2);
+plot(1:k,ratio1,'-+b')
+hold on
+plot(1:k,ratio_cp,'-or')
+plot(1:nb_rsvd, ratio_rsvd,'-*g')
+plot(1:k,ratio_strong,'-s')
+legend('Rand SRRQR','QRCP','Rand SVD','Rand QDP')
+xlabel('index i')
+ylabel('$\sigma_i(M)/\sigma_i(R_{11})$','Interpreter','latex')
+%% do a QLP factorization on R
+Rk = R(1:k,:);
+[Q2,L] = qr(Rk');
+L = L';
+L_val = diag(L);
+L_val = abs(L_val(1:k));
+ratio_svd1 = L_val./sig_M(1:k);
+
+Rk_cp = R_cp(1:k,:);
+[Q2_cp, L_cp ] = qr(Rk_cp');
+L_cp = L_cp';
+L_val_cp = diag(L_cp);
+L_val_cp = abs(L_val_cp(1:k));
+ratio_svd2 = L_val_cp./sig_M(1:k);
+
+
+% plot the L-values
+fig3 = figure(3);
+semilogy(1:k, sig_M(1:k),'--','LineWidth',2)
+hold on
+semilogy(1:k,sig_L(1:k),'--','LineWidth',2)
+semilogy(1:k, L_val,'-*r')
+semilogy(1:k, L_val_cp,'-og')
+
+
+legend('$\sigma_{i}(M)$','$\sigma_{i}(R_k)$','$L_{ii}$ by RSRRQR','$L_{ii}$ by QRCP','Interpreter','latex')
+xlabel('index i')
+title("QLP")
+%% Approximation
+f_eps = f*sqrt((1+0.25)/(1-0.25));
+low_ranks = fix(k/3):fix(0.75*k);
+errors = zeros(1,length(low_ranks));
+A = sig_M(low_ranks+1);
+AA = sig_M(k+1)*sqrt(1+f_eps^2*k*(n-k));
+bounds = sig_M(low_ranks+1) + sig_M(k+1)*sqrt(1+f_eps^2*k*(n-k));
+Q2 = Q2'*P';
+for i = 1:length(low_ranks)
+    ell = low_ranks(i);
+    L_approx = trun_svd(L,ell);
+    R_approx = trun_svd(Rk,ell);
+    M_approx = Q(:,1:k)*L_approx*Q2;
+    errors(i) = norm(M - M_approx);
+end
+
+fig4 = figure(4)
+semilogy(low_ranks,errors,LineWidth=2.0)
+hold on
+semilogy(low_ranks,bounds,'--+',LineWidth= 3.0)
+%semilogy(low_ranks,sig_M_rsvd(low_ranks+1),'--',LineWidth=3.0)
+semilogy(low_ranks,sig_M(low_ranks+1),'--s',LineWidth=2.0)
+legend('errors','theoretical bounds','SVD')
+%legend('errors','theoretical bounds','Rand SVD','SVD')
+xlabel('low rank $\ell$','Interpreter','latex')
+ylabel('$\|\hat{M}_{\ell} - M\|_2$','Interpreter','latex')
+%% save pictures
+saveas(fig1,"stewart_1_80k.png")
+saveas(fig2,"stewart_2_80k.png")
+saveas(fig3,"stewart_3_80k.png")
+saveas(fig4,"stewart_4_80k.png")

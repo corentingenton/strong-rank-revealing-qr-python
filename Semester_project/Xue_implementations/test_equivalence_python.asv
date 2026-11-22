@@ -1,0 +1,33 @@
+clear
+clc
+seed = 42;  % Set your desired seed
+rng(seed);
+n = 5;
+
+M = rand(5)';
+
+[Q, R, A, B ,C] = partialQR(M, 3);
+
+%%
+
+[gamma, i, j] = maxn3(M);
+
+%%
+clear
+clc
+seed = ;  % Set your desired seed
+rng(42);
+M = rand(13,8);
+
+%%
+
+seed = 42;  % Set your desired seed
+rng(seed);
+n = 7;
+
+M = rand(n)';
+
+[Q, R, P, nb] = rrqr_k(M, 3, 1);
+
+%%
+disp(M)
